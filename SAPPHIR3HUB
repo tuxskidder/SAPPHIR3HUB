@@ -61,16 +61,7 @@ local Window = Rayfield:CreateWindow({
         FolderName = "Sapphir3Hub",
         FileName = "Sapphir3Config"
     },
-    KeySystem = false, -- Set to true if you want key system
-    KeySettings = {
-        Title = "Sapphir3 Hub By Tux",
-        Subtitle = "Key System",
-        Note = "Join Discord for key access!",
-        FileName = "Sapphir3Key",
-        SaveKey = true,
-        GrabKeyFromSite = false,
-        Key = "SAPPHIR3TUX2024"
-    }
+    KeySystem = false
 })
 
 -- Create tabs
