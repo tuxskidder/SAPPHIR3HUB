@@ -1,0 +1,748 @@
+-- Sapphir3 Hub - Advanced Rivals Script with proper implementations and error handling
+-- Import Rayfield UI library
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+-- Variables
+local Player = Players.LocalPlayer
+local Mouse = Player:GetMouse()
+local Camera = Workspace.CurrentCamera
+
+-- Global settings
+_G.Sapphir3Settings = {
+    -- Aimbot Settings
+    AimbotEnabled = false,
+    FieldOfView = 90,
+    Smoothness = 0.1,
+    Prediction = false,
+    VisibleCheck = true,
+    TeamCheck = true,
+    AimPart = "Head",
+    
+    -- ESP Settings
+    ESPEnabled = false,
+    ESPTeamCheck = true,
+    ESPDistance = 200,
+    ESPBoxes = true,
+    ESPNames = true,
+    ESPHealth = true,
+    
+    -- Movement Settings
+    FlyEnabled = false,
+    FlySpeed = 50,
+    NoclipEnabled = false,
+    SpeedEnabled = false,
+    SpeedValue = 16,
+    JumpPowerEnabled = false,
+    JumpPowerValue = 50
+}
+
+-- Storage
+local Connections = {}
+local ESPObjects = {}
+local BodyVelocity = nil
+local OriginalWalkSpeed = 16
+local OriginalJumpPower = 50
+
+-- Create the main window
+local Window = Rayfield:CreateWindow({
+    Name = "Sapphir3 Hub By Tux",
+    LoadingTitle = "Sapphir3 Hub By Tux",
+    LoadingSubtitle = "Advanced Script Hub v3.0",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "Sapphir3Hub",
+        FileName = "Sapphir3Config"
+    },
+    KeySystem = false, -- Set to true if you want key system
+    KeySettings = {
+        Title = "Sapphir3 Hub By Tux",
+        Subtitle = "Key System",
+        Note = "Join Discord for key access!",
+        FileName = "Sapphir3Key",
+        SaveKey = true,
+        GrabKeyFromSite = false,
+        Key = "SAPPHIR3TUX2024"
+    }
+})
+
+-- Create tabs
+local AimbotTab = Window:CreateTab("Aimbot", 4483362958)
+local ESPTab = Window:CreateTab("ESP", 4483362459)
+local MovementTab = Window:CreateTab("Movement", 4483362460)
+local MiscTab = Window:CreateTab("Misc", 4483362461)
+
+-- ===== AIMBOT SECTION =====
+local AimbotSection = AimbotTab:CreateSection("Aimbot Settings")
+
+local AimbotToggle = AimbotTab:CreateToggle({
+    Name = "Enable Aimbot",
+    CurrentValue = false,
+    Flag = "AimbotEnabled",
+    Callback = function(Value)
+        _G.Settings.AimbotEnabled = Value
+        if Value then
+            Rayfield:Notify({
+                Title = "Aimbot Enabled",
+                Content = "Aimbot is now active!",
+                Duration = 3,
+                Image = 4483362458
+            })
+        end
+    end,
+})
+
+local FOVSlider = AimbotTab:CreateSlider({
+    Name = "Field of View",
+    Range = {10, 180},
+    Increment = 1,
+    Suffix = "°",
+    CurrentValue = 90,
+    Flag = "FieldOfView",
+    Callback = function(Value)
+        _G.Sapphir3Settings.FieldOfView = Value
+    end,
+})
+
+local SmoothnessSlider = AimbotTab:CreateSlider({
+    Name = "Smoothness",
+    Range = {0.01, 1},
+    Increment = 0.01,
+    Suffix = "",
+    CurrentValue = 0.1,
+    Flag = "Smoothness",
+    Callback = function(Value)
+        _G.Sapphir3Settings.Smoothness = Value
+    end,
+})
+
+local AimPartDropdown = AimbotTab:CreateDropdown({
+    Name = "Aim Part",
+    Options = {"Head", "UpperTorso", "LowerTorso", "HumanoidRootPart"},
+    CurrentOption = "Head",
+    Flag = "AimPart",
+    Callback = function(Option)
+        _G.Sapphir3Settings.AimPart = Option
+    end,
+})
+
+local PredictionToggle = AimbotTab:CreateToggle({
+    Name = "Prediction",
+    CurrentValue = false,
+    Flag = "Prediction",
+    Callback = function(Value)
+        _G.Settings.Prediction = Value
+    end,
+})
+
+local VisibleCheckToggle = AimbotTab:CreateToggle({
+    Name = "Visible Check",
+    CurrentValue = true,
+    Flag = "VisibleCheck",
+    Callback = function(Value)
+        _G.Settings.VisibleCheck = Value
+    end,
+})
+
+local TeamCheckToggle = AimbotTab:CreateToggle({
+    Name = "Team Check",
+    CurrentValue = true,
+    Flag = "TeamCheck",
+    Callback = function(Value)
+        _G.Settings.TeamCheck = Value
+    end,
+})
+
+-- ===== ESP SECTION =====
+local ESPSection = ESPTab:CreateSection("ESP Settings")
+
+local ESPToggle = ESPTab:CreateToggle({
+    Name = "Enable ESP",
+    CurrentValue = false,
+    Flag = "ESPEnabled",
+    Callback = function(Value)
+        _G.Settings.ESPEnabled = Value
+        if not Value then
+            clearESP()
+        else
+            createESPForAllPlayers()
+        end
+    end,
+})
+
+local ESPBoxesToggle = ESPTab:CreateToggle({
+    Name = "ESP Boxes",
+    CurrentValue = true,
+    Flag = "ESPBoxes",
+    Callback = function(Value)
+        _G.Settings.ESPBoxes = Value
+    end,
+})
+
+local ESPNamesToggle = ESPTab:CreateToggle({
+    Name = "ESP Names",
+    CurrentValue = true,
+    Flag = "ESPNames",
+    Callback = function(Value)
+        _G.Settings.ESPNames = Value
+    end,
+})
+
+local ESPHealthToggle = ESPTab:CreateToggle({
+    Name = "ESP Health",
+    CurrentValue = true,
+    Flag = "ESPHealth",
+    Callback = function(Value)
+        _G.Settings.ESPHealth = Value
+    end,
+})
+
+local ESPTeamCheckToggle = ESPTab:CreateToggle({
+    Name = "ESP Team Check",
+    CurrentValue = true,
+    Flag = "ESPTeamCheck",
+    Callback = function(Value)
+        _G.Settings.ESPTeamCheck = Value
+    end,
+})
+
+local ESPDistanceSlider = ESPTab:CreateSlider({
+    Name = "ESP Distance",
+    Range = {50, 500},
+    Increment = 10,
+    Suffix = " studs",
+    CurrentValue = 200,
+    Flag = "ESPDistance",
+    Callback = function(Value)
+        _G.Settings.ESPDistance = Value
+    end,
+})
+
+-- ===== MOVEMENT SECTION =====
+local MovementSection = MovementTab:CreateSection("Movement Mods")
+
+local FlyToggle = MovementTab:CreateToggle({
+    Name = "Fly",
+    CurrentValue = false,
+    Flag = "FlyEnabled",
+    Callback = function(Value)
+        _G.Settings.FlyEnabled = Value
+        toggleFly(Value)
+    end,
+})
+
+local FlySpeedSlider = MovementTab:CreateSlider({
+    Name = "Fly Speed",
+    Range = {10, 100},
+    Increment = 5,
+    Suffix = "",
+    CurrentValue = 50,
+    Flag = "FlySpeed",
+    Callback = function(Value)
+        _G.Settings.FlySpeed = Value
+    end,
+})
+
+local NoclipToggle = MovementTab:CreateToggle({
+    Name = "Noclip",
+    CurrentValue = false,
+    Flag = "NoclipEnabled",
+    Callback = function(Value)
+        _G.Settings.NoclipEnabled = Value
+        toggleNoclip(Value)
+    end,
+})
+
+local SpeedToggle = MovementTab:CreateToggle({
+    Name = "Speed Hack",
+    CurrentValue = false,
+    Flag = "SpeedEnabled",
+    Callback = function(Value)
+        _G.Settings.SpeedEnabled = Value
+        toggleSpeed(Value)
+    end,
+})
+
+local SpeedSlider = MovementTab:CreateSlider({
+    Name = "Speed Value",
+    Range = {16, 100},
+    Increment = 2,
+    Suffix = "",
+    CurrentValue = 16,
+    Flag = "SpeedValue",
+    Callback = function(Value)
+        _G.Settings.SpeedValue = Value
+        if _G.Settings.SpeedEnabled then
+            updateSpeed()
+        end
+    end,
+})
+
+local JumpPowerToggle = MovementTab:CreateToggle({
+    Name = "Jump Power",
+    CurrentValue = false,
+    Flag = "JumpPowerEnabled",
+    Callback = function(Value)
+        _G.Settings.JumpPowerEnabled = Value
+        toggleJumpPower(Value)
+    end,
+})
+
+local JumpPowerSlider = MovementTab:CreateSlider({
+    Name = "Jump Power Value",
+    Range = {50, 200},
+    Increment = 10,
+    Suffix = "",
+    CurrentValue = 50,
+    Flag = "JumpPowerValue",
+    Callback = function(Value)
+        _G.Settings.JumpPowerValue = Value
+        if _G.Settings.JumpPowerEnabled then
+            updateJumpPower()
+        end
+    end,
+})
+
+-- ===== MISC SECTION =====
+local MiscSection = MiscTab:CreateSection("Miscellaneous")
+
+local DiscordButton = MiscTab:CreateButton({
+    Name = "Join Discord",
+    Callback = function()
+        setclipboard("https://discord.gg/sapphir3-tux")
+        Rayfield:Notify({
+            Title = "Sapphir3 Hub",
+            Content = "Discord invite has been copied to clipboard",
+            Duration = 3,
+            Image = 4483362458
+        })
+    end,
+})
+
+local DestroyGUIButton = MiscTab:CreateButton({
+    Name = "Destroy GUI",
+    Callback = function()
+        cleanupAll()
+        Rayfield:Destroy()
+    end,
+})
+
+-- ===== FUNCTIONS =====
+
+-- Utility Functions
+local function getCharacter()
+    return Player.Character
+end
+
+local function getHumanoid()
+    local character = getCharacter()
+    return character and character:FindFirstChildOfClass("Humanoid")
+end
+
+local function getRootPart()
+    local character = getCharacter()
+    return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+-- Aimbot Functions
+local function isVisible(targetPart)
+    if not _G.Settings.VisibleCheck then return true end
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {getCharacter()}
+    
+    local ray = Workspace:Raycast(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position).Unit * 1000, raycastParams)
+    
+    return ray and ray.Instance and ray.Instance:IsDescendantOf(targetPart.Parent)
+end
+
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    local mousePos = UserInputService:GetMouseLocation()
+    
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer ~= Player and targetPlayer.Character then
+            local character = targetPlayer.Character
+            local targetPart = character:FindFirstChild(_G.Settings.AimPart)
+            
+            if targetPart then
+                -- Team check
+                if _G.Settings.TeamCheck and targetPlayer.Team == Player.Team then
+                    continue
+                end
+                
+                -- Visible check
+                if not isVisible(targetPart) then
+                    continue
+                end
+                
+                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    
+                    if distance < _G.Settings.FieldOfView and distance < shortestDistance then
+                        closestPlayer = targetPlayer
+                        shortestDistance = distance
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+local function aimAtTarget(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then return end
+    
+    local targetPart = targetPlayer.Character:FindFirstChild(_G.Settings.AimPart)
+    if not targetPart then return end
+    
+    local targetPosition = targetPart.Position
+    
+    -- Prediction
+    if _G.Settings.Prediction and targetPart.Parent:FindFirstChild("HumanoidRootPart") then
+        local velocity = targetPart.Parent.HumanoidRootPart.Velocity
+        targetPosition = targetPosition + (velocity * 0.1) -- Predict 0.1 seconds ahead
+    end
+    
+    local currentCFrame = Camera.CFrame
+    local targetCFrame = CFrame.lookAt(currentCFrame.Position, targetPosition)
+    
+    -- Smooth aiming
+    local newCFrame = currentCFrame:Lerp(targetCFrame, _G.Settings.Smoothness)
+    Camera.CFrame = newCFrame
+end
+
+-- ESP Functions
+function clearESP()
+    for _, espData in pairs(ESPObjects) do
+        if espData.Box then espData.Box:Remove() end
+        if espData.Name then espData.Name:Remove() end
+        if espData.Health then espData.Health:Remove() end
+        if espData.Connection then espData.Connection:Disconnect() end
+    end
+    ESPObjects = {}
+end
+
+function createESP(targetPlayer)
+    if ESPObjects[targetPlayer] then return end
+    
+    local espData = {}
+    
+    -- Create box
+    if _G.Settings.ESPBoxes then
+        espData.Box = Drawing.new("Square")
+        espData.Box.Thickness = 2
+        espData.Box.Color = Color3.fromRGB(255, 255, 255)
+        espData.Box.Transparency = 1
+        espData.Box.Filled = false
+        espData.Box.Visible = false
+    end
+    
+    -- Create name
+    if _G.Settings.ESPNames then
+        espData.Name = Drawing.new("Text")
+        espData.Name.Text = targetPlayer.Name
+        espData.Name.Size = 16
+        espData.Name.Center = true
+        espData.Name.Color = Color3.fromRGB(255, 255, 255)
+        espData.Name.Visible = false
+    end
+    
+    -- Create health bar
+    if _G.Settings.ESPHealth then
+        espData.Health = Drawing.new("Line")
+        espData.Health.Thickness = 2
+        espData.Health.Color = Color3.fromRGB(0, 255, 0)
+        espData.Health.Visible = false
+    end
+    
+    -- Update function
+    local function updateESP()
+        if not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            if espData.Box then espData.Box.Visible = false end
+            if espData.Name then espData.Name.Visible = false end
+            if espData.Health then espData.Health.Visible = false end
+            return
+        end
+        
+        local character = targetPlayer.Character
+        local rootPart = character.HumanoidRootPart
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        
+        -- Distance check
+        local distance = (rootPart.Position - getRootPart().Position).Magnitude
+        if distance > _G.Settings.ESPDistance then
+            if espData.Box then espData.Box.Visible = false end
+            if espData.Name then espData.Name.Visible = false end
+            if espData.Health then espData.Health.Visible = false end
+            return
+        end
+        
+        -- Team check
+        if _G.Settings.ESPTeamCheck and targetPlayer.Team == Player.Team then
+            if espData.Box then espData.Box.Visible = false end
+            if espData.Name then espData.Name.Visible = false end
+            if espData.Health then espData.Health.Visible = false end
+            return
+        end
+        
+        local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+        
+        if onScreen and _G.Settings.ESPEnabled then
+            local headPos = Camera:WorldToViewportPoint(character.Head.Position)
+            local legPos = Camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0))
+            
+            local boxHeight = math.abs(headPos.Y - legPos.Y)
+            local boxWidth = boxHeight * 0.5
+            
+            -- Update box
+            if espData.Box then
+                espData.Box.Size = Vector2.new(boxWidth, boxHeight)
+                espData.Box.Position = Vector2.new(screenPos.X - boxWidth/2, headPos.Y)
+                espData.Box.Visible = true
+            end
+            
+            -- Update name
+            if espData.Name then
+                espData.Name.Position = Vector2.new(screenPos.X, headPos.Y - 20)
+                espData.Name.Visible = true
+            end
+            
+            -- Update health
+            if espData.Health and humanoid then
+                local healthPercentage = humanoid.Health / humanoid.MaxHealth
+                espData.Health.From = Vector2.new(screenPos.X - boxWidth/2 - 5, headPos.Y)
+                espData.Health.To = Vector2.new(screenPos.X - boxWidth/2 - 5, headPos.Y + (boxHeight * healthPercentage))
+                espData.Health.Color = Color3.fromRGB(255 * (1 - healthPercentage), 255 * healthPercentage, 0)
+                espData.Health.Visible = true
+            end
+        else
+            if espData.Box then espData.Box.Visible = false end
+            if espData.Name then espData.Name.Visible = false end
+            if espData.Health then espData.Health.Visible = false end
+        end
+    end
+    
+    espData.Connection = RunService.Heartbeat:Connect(updateESP)
+    ESPObjects[targetPlayer] = espData
+end
+
+function createESPForAllPlayers()
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer ~= Player then
+            createESP(targetPlayer)
+        end
+    end
+end
+
+-- Movement Functions
+function toggleFly(enabled)
+    local rootPart = getRootPart()
+    if not rootPart then return end
+    
+    if enabled then
+        BodyVelocity = Instance.new("BodyVelocity")
+        BodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+        BodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        BodyVelocity.Parent = rootPart
+        
+        Connections.FlyConnection = RunService.Heartbeat:Connect(function()
+            if BodyVelocity then
+                local moveVector = Vector3.new(0, 0, 0)
+                
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                    moveVector = moveVector + Camera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                    moveVector = moveVector - Camera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                    moveVector = moveVector - Camera.CFrame.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                    moveVector = moveVector + Camera.CFrame.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                    moveVector = moveVector + Camera.CFrame.UpVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                    moveVector = moveVector - Camera.CFrame.UpVector
+                end
+                
+                BodyVelocity.Velocity = moveVector * _G.Settings.FlySpeed
+            end
+        end)
+    else
+        if BodyVelocity then
+            BodyVelocity:Destroy()
+            BodyVelocity = nil
+        end
+        if Connections.FlyConnection then
+            Connections.FlyConnection:Disconnect()
+            Connections.FlyConnection = nil
+        end
+    end
+end
+
+function toggleNoclip(enabled)
+    local character = getCharacter()
+    if not character then return end
+    
+    if enabled then
+        Connections.NoclipConnection = RunService.Stepped:Connect(function()
+            for _, part in pairs(character:GetChildren()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end)
+    else
+        if Connections.NoclipConnection then
+            Connections.NoclipConnection:Disconnect()
+            Connections.NoclipConnection = nil
+        end
+        
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+function toggleSpeed(enabled)
+    local humanoid = getHumanoid()
+    if not humanoid then return end
+    
+    if enabled then
+        if not OriginalWalkSpeed then
+            OriginalWalkSpeed = humanoid.WalkSpeed
+        end
+        humanoid.WalkSpeed = _G.Settings.SpeedValue
+    else
+        humanoid.WalkSpeed = OriginalWalkSpeed or 16
+    end
+end
+
+function updateSpeed()
+    local humanoid = getHumanoid()
+    if humanoid and _G.Settings.SpeedEnabled then
+        humanoid.WalkSpeed = _G.Settings.SpeedValue
+    end
+end
+
+function toggleJumpPower(enabled)
+    local humanoid = getHumanoid()
+    if not humanoid then return end
+    
+    if enabled then
+        if not OriginalJumpPower then
+            OriginalJumpPower = humanoid.JumpPower
+        end
+        humanoid.JumpPower = _G.Settings.JumpPowerValue
+    else
+        humanoid.JumpPower = OriginalJumpPower or 50
+    end
+end
+
+function updateJumpPower()
+    local humanoid = getHumanoid()
+    if humanoid and _G.Settings.JumpPowerEnabled then
+        humanoid.JumpPower = _G.Settings.JumpPowerValue
+    end
+end
+
+function cleanupAll()
+    -- Disconnect all connections
+    for _, connection in pairs(Connections) do
+        if connection then
+            connection:Disconnect()
+        end
+    end
+    Connections = {}
+    
+    -- Clean up ESP
+    clearESP()
+    
+    -- Reset movement mods
+    if BodyVelocity then
+        BodyVelocity:Destroy()
+        BodyVelocity = nil
+    end
+    
+    local humanoid = getHumanoid()
+    if humanoid then
+        humanoid.WalkSpeed = OriginalWalkSpeed or 16
+        humanoid.JumpPower = OriginalJumpPower or 50
+    end
+    
+    toggleNoclip(false)
+end
+
+-- ===== MAIN LOOPS =====
+
+-- Aimbot loop
+Connections.AimbotConnection = RunService.RenderStepped:Connect(function()
+    if _G.Settings.AimbotEnabled then
+        local target = getClosestPlayer()
+        if target then
+            aimAtTarget(target)
+        end
+    end
+end)
+
+-- Player connection handlers
+Players.PlayerAdded:Connect(function(newPlayer)
+    if _G.Settings.ESPEnabled and newPlayer ~= Player then
+        createESP(newPlayer)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if ESPObjects[leavingPlayer] then
+        local espData = ESPObjects[leavingPlayer]
+        if espData.Box then espData.Box:Remove() end
+        if espData.Name then espData.Name:Remove() end
+        if espData.Health then espData.Health:Remove() end
+        if espData.Connection then espData.Connection:Disconnect() end
+        ESPObjects[leavingPlayer] = nil
+    end
+end)
+
+-- Character respawn handler
+Player.CharacterAdded:Connect(function()
+    wait(1) -- Wait for character to fully load
+    
+    -- Reapply movement mods if they were enabled
+    if _G.Settings.FlyEnabled then
+        toggleFly(true)
+    end
+    if _G.Settings.NoclipEnabled then
+        toggleNoclip(true)
+    end
+    if _G.Settings.SpeedEnabled then
+        toggleSpeed(true)
+    end
+    if _G.Settings.JumpPowerEnabled then
+        toggleJumpPower(true)
+    end
+end)
+
+-- Cleanup on script end
+game:GetService("Players").PlayerRemoving:Connect(function(player)
+    if player == Player then
+        cleanupAll()
+    end
+end)
