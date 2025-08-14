@@ -1,6 +1,71 @@
 -- Sapphir3 Hub - Advanced Rivals Script with proper implementations and error handling
--- Import Rayfield UI library
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+-- Compatible with all executors
+
+-- Executor compatibility checks
+local function getExecutor()
+    if identifyexecutor then
+        return identifyexecutor()
+    elseif KRNL_LOADED then
+        return "KRNL"
+    elseif syn then
+        return "Synapse X"
+    elseif getgenv().OXYGEN_LOADED then
+        return "Oxygen U"
+    elseif SENTINEL_LOADED then
+        return "Sentinel"
+    elseif getgenv().WRD_LOADED then
+        return "WeAreDevs"
+    else
+        return "Unknown"
+    end
+end
+
+-- Universal clipboard function
+local function setuniversalclipboard(text)
+    if setclipboard then
+        setclipboard(text)
+    elseif toclipboard then
+        toclipboard(text)
+    elseif writeclipboard then
+        writeclipboard(text)
+    else
+        warn("Clipboard not supported on this executor")
+    end
+end
+
+-- Universal drawing library
+local drawingSupported = pcall(function() return Drawing.new end)
+if not drawingSupported then
+    -- Fallback for executors without Drawing library
+    Drawing = {}
+    Drawing.new = function() 
+        return {
+            Visible = false,
+            Remove = function() end,
+            Size = Vector2.new(),
+            Position = Vector2.new(),
+            Color = Color3.new(),
+            Transparency = 1,
+            Thickness = 1,
+            Filled = false,
+            Text = "",
+            Center = false
+        }
+    end
+end
+
+-- Import Rayfield UI library with error handling
+local Rayfield
+local success, err = pcall(function()
+    Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+end)
+
+if not success then
+    warn("Failed to load Rayfield UI: " .. tostring(err))
+    warn("Attempting backup UI...")
+    -- You could add a backup UI here if needed
+    return
+end
 
 -- Services
 local Players = game:GetService("Players")
@@ -307,7 +372,7 @@ local MiscSection = MiscTab:CreateSection("Miscellaneous")
 local DiscordButton = MiscTab:CreateButton({
     Name = "Join Discord",
     Callback = function()
-        setclipboard("https://discord.gg/sapphir3-tux")
+        setuniversalclipboard("https://discord.gg/sapphir3-tux")
         Rayfield:Notify({
             Title = "Sapphir3 Hub",
             Content = "Discord invite has been copied to clipboard",
@@ -324,6 +389,17 @@ local DestroyGUIButton = MiscTab:CreateButton({
         Rayfield:Destroy()
     end,
 })
+
+local ExecutorInfo = MiscTab:CreateLabel("Executor: " .. getExecutor())
+
+-- Executor-specific optimizations
+local isLowEnd = getExecutor() == "KRNL" or getExecutor() == "WeAreDevs" or getExecutor() == "Unknown"
+if isLowEnd then
+    -- Reduce update frequency for low-end executors
+    _G.Sapphir3Settings.UpdateRate = 0.1
+else
+    _G.Sapphir3Settings.UpdateRate = 0.05
+end
 
 -- ===== FUNCTIONS =====
 
@@ -415,19 +491,19 @@ local function aimAtTarget(targetPlayer)
     Camera.CFrame = newCFrame
 end
 
--- ESP Functions
+-- ESP Functions with compatibility checks
 function clearESP()
     for _, espData in pairs(ESPObjects) do
-        if espData.Box then espData.Box:Remove() end
-        if espData.Name then espData.Name:Remove() end
-        if espData.Health then espData.Health:Remove() end
+        if espData.Box and espData.Box.Remove then espData.Box:Remove() end
+        if espData.Name and espData.Name.Remove then espData.Name:Remove() end
+        if espData.Health and espData.Health.Remove then espData.Health:Remove() end
         if espData.Connection then espData.Connection:Disconnect() end
     end
     ESPObjects = {}
 end
 
 function createESP(targetPlayer)
-    if ESPObjects[targetPlayer] then return end
+    if ESPObjects[targetPlayer] or not drawingSupported then return end
     
     local espData = {}
     
